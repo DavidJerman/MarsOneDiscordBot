@@ -495,16 +495,20 @@ async def on_message(msg):
             guild = msg.guild
             voice_client: VoiceClient = discord.utils.get(client.voice_clients, guild=guild)
             voice_clients[guild_id] = [guild_id, channel, voice_client, []]
-
         else:
             guild_id, channel, voice_client, ignored = voice_clients[guild_id]
             if not voice_client.is_connected():
+                user = msg.author
+                channel = user.voice.channel
                 await channel.connect()
+                guild = msg.guild
+                voice_client: VoiceClient = discord.utils.get(client.voice_clients, guild=guild)
+                voice_clients[guild_id] = [guild_id, channel, voice_client, []]
 
         # Add the song to query
         await add_to_que(msg.content, guild_id, msg)
 
-        await play_next_song(None, guild_id)
+        await play_next_song(guild_id)
 
     # Skipping a song
     elif msg.content.startswith(".skip") or msg.content.startswith(".next"):
@@ -512,9 +516,16 @@ async def on_message(msg):
         if voice_client.is_playing():
             await msg.channel.send("**Skipped the song.**")
             voice_client.stop()
-            await play_next_song(None, guild_id)
+            await play_next_song(guild_id)
         else:
             await msg.channel.send("**Cannot skip, no song playing.**")
+
+    # Disconnecting the bot from the voice channel
+    elif msg.content.startswith(".fuckoff") or msg.content.startswith(".exit") or msg.content.startswith(".quit") or\
+            msg.content.startswith(".getout") or msg.content.startswith(".disconnect"):
+        guild_id, channel, voice_client, ignored = voice_clients[guild_id]
+        await voice_client.voice_disconnect()
+        del voice_clients[guild_id]
 
     # Help
     elif msg.content.startswith(".help"):
@@ -574,7 +585,10 @@ async def on_message(msg):
                   "           $ Aliases: [.play, .p]\n" \
                   ".skip      - Skips a song\n" \
                   "           * Usage: .skip\n" \
-                  "           $ Aliases: [.skip, .next]" \
+                  "           $ Aliases: [.skip, .next]\n" \
+                  ".quit      - Disconnects from the voice channel\n" \
+                  "           * Usage: .quit\n" \
+                  "           $ Aliases: [.quit, .exit, .fuckoff, .getout, .disconnect]" \
                   "```"
         await msg.channel.send(message)
 
@@ -607,17 +621,17 @@ async def list_servers():
         await asyncio.sleep(3600)
 
 
-async def play_next_song(args, guild_id):
+async def play_next_song(guild_id):
     def next_song(passed_guild_id):
-        passed_guild_id, channel, voice_client, songs = voice_clients[passed_guild_id]
-        if songs:
-            if not voice_client.is_playing():
-                audio_source = discord.FFmpegPCMAudio("songs\\" + songs[0] + ".mp3",
-                                                      executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
-                songs.remove(songs[0])
-                voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
-                voice_client.play(audio_source, after=lambda e: next_song(passed_guild_id))
-
+        if passed_guild_id in voice_clients:
+            passed_guild_id, channel, voice_client, songs = voice_clients[passed_guild_id]
+            if songs:
+                if not voice_client.is_playing():
+                    audio_source = discord.FFmpegPCMAudio("songs\\" + songs[0] + ".mp3",
+                                                          executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
+                    songs.remove(songs[0])
+                    voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
+                    voice_client.play(audio_source, after=lambda e: next_song(passed_guild_id))
     next_song(guild_id)
 
 
