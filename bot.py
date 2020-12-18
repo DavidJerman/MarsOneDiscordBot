@@ -64,6 +64,31 @@ async def on_message(msg):
                 cursor.execute(f'''INSERT INTO users VALUES ({guild_id}, {msg.author.id}, 1, 0)''')
                 connection.commit()
 
+    # Get level
+    if msg.content.startswith(".level") or msg.content.startswith(".lvl"):
+        cursor.execute(f'''SELECT experience, user_level FROM users
+        WHERE server_id={guild_id} AND user_id = {msg.author.id} ''')
+        found = False
+        for user in cursor.fetchall():
+            found = True
+            embed_var = discord.Embed(title=msg.author.display_name, color=0xff0000)
+            embed_var.add_field(name="User experience: ", value=user[0], inline=False)
+            embed_var.add_field(name="User level: ", value=user[1], inline=False)
+            await msg.channel.send(embed=embed_var)
+        if not found:
+            cursor.execute('''CREATE TABLE
+                              IF NOT EXISTS
+                              users (server_id int, user_id int, experience int, user_level int,
+                              PRIMARY KEY (server_id, user_id))''')
+            cursor.execute(f'''INSERT INTO users VALUES ({guild_id}, {msg.author.id}, 0, 0)''')
+            for user in cursor.fetchall():
+                embed_var = discord.Embed(title=msg.author.display_name, color=0xff0000)
+                embed_var.add_field(name="User experience: ", value=user[0], inline=False)
+                embed_var.add_field(name="User level: ", value=user[1], inline=False)
+                await msg.channel.send(embed=embed_var)
+            await msg.content.send("You don't have any levels yet dear user. You can gain levels and experience by "
+                                   "**sending messages** and **being active** in the server.")
+
     # Random message
     if msg.content.startswith(".rmsg") or msg.content.startswith(".rmessage") or msg.content.startswith(".rms"):
         messages = [
@@ -614,7 +639,10 @@ async def on_message(msg):
                   "           $ Aliases: [.skip, .next]\n" \
                   ".quit      - Disconnects from the voice channel\n" \
                   "           * Usage: .quit\n" \
-                  "           $ Aliases: [.quit, .exit, .fuckoff, .getout, .disconnect]" \
+                  "           $ Aliases: [.quit, .exit, .fuckoff, .getout, .disconnect]\n" \
+                  ".level     - Shows the user level\n" \
+                  "           * Usage: .level\n" \
+                  "           & Aliases: [.level, .lvl]" \
                   "```"
         await msg.channel.send(message)
 
