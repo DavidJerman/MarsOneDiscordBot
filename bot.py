@@ -1,14 +1,18 @@
-from pytube import YouTube
-import os
 import asyncio
-import requests
-from discord import Game, VoiceClient
-from discord import Client
-from discord import Intents
-import discord
-import random
 import math
+import os
+import random
+import re
 import sqlite3
+import urllib.parse
+import urllib.request
+
+import discord
+import requests
+from discord import Client
+from discord import Game, VoiceClient
+from discord import Intents
+from pytube import YouTube
 from pytube.exceptions import RegexMatchError
 
 TOKEN = ''
@@ -487,28 +491,49 @@ async def on_message(msg):
     # Playing music
     elif msg.content.startswith(".p") or msg.content.startswith(".play"):
 
-        # Add a new voice client if not exists
-        if guild_id not in voice_clients:
-            user = msg.author
-            channel = user.voice.channel
-            await channel.connect()
-            guild = msg.guild
-            voice_client: VoiceClient = discord.utils.get(client.voice_clients, guild=guild)
-            voice_clients[guild_id] = [guild_id, channel, voice_client, []]
-        else:
-            guild_id, channel, voice_client, ignored = voice_clients[guild_id]
-            if not voice_client.is_connected():
+        # Args
+        args = msg.content.split(" ")
+        args = (filter("".__ne__, args))
+        args = [i for i in args]
+
+        if len(args) > 1:
+
+            arg = ""
+            for _arg in args[1:]:
+                arg += _arg
+
+            # Add a new voice client if not exists
+            if guild_id not in voice_clients:
                 user = msg.author
                 channel = user.voice.channel
                 await channel.connect()
                 guild = msg.guild
                 voice_client: VoiceClient = discord.utils.get(client.voice_clients, guild=guild)
                 voice_clients[guild_id] = [guild_id, channel, voice_client, []]
+            else:
+                guild_id, channel, voice_client, ignored = voice_clients[guild_id]
+                if not voice_client.is_connected():
+                    user = msg.author
+                    channel = user.voice.channel
+                    await channel.connect()
+                    guild = msg.guild
+                    voice_client: VoiceClient = discord.utils.get(client.voice_clients, guild=guild)
+                    voice_clients[guild_id] = [guild_id, channel, voice_client, []]
 
-        # Add the song to query
-        await add_to_que(msg.content, guild_id, msg)
+            # Search for the song on youtube if needed
+            if len(args) == 2:
+                if not ("www.youtube.com" in arg or "youtu.be" in arg):
+                    arg = yt_search(arg)
+            else:
+                arg = yt_search(arg)
 
-        await play_next_song(guild_id)
+            # Add the song to query
+            await add_to_que(arg, guild_id, msg)
+
+            await play_next_song(guild_id)
+
+        else:
+            msg.channel.send("Missing arguments")
 
     # Skipping a song
     elif msg.content.startswith(".skip") or msg.content.startswith(".next"):
@@ -517,6 +542,7 @@ async def on_message(msg):
             await msg.channel.send("**Skipped the song.**")
             voice_client.stop()
             await play_next_song(guild_id)
+            await msg.delete()
         else:
             await msg.channel.send("**Cannot skip, no song playing.**")
 
@@ -638,7 +664,7 @@ async def play_next_song(guild_id):
 async def download_if_not_exists(file_name, url, msg):
     if not file_name + ".mp3" in os.listdir("songs\\"):
         try:
-            download_msg = await msg.channel.send("Attempting to download the song...")
+            download_msg = await msg.channel.send("*Attempting to download the song...*")
             yt = YouTube(url)
             try:
                 yt.streams.filter(only_audio=True).first().download(filename=file_name)
@@ -651,30 +677,34 @@ async def download_if_not_exists(file_name, url, msg):
                     except AttributeError:
                         raise CustomException
             os.rename(file_name + ".mp4", "songs\\" + file_name + ".mp3")
-            await msg.channel.send(f"{url} added to the que.")
+            await msg.channel.send(f"{url} **added to the que.**")
             await msg.delete()
             await download_msg.delete()
             return True
         except RegexMatchError:
-            await msg.channel.send("Invalid youtube url!")
+            await msg.channel.send("**Invalid youtube url!**")
             return False
         except CustomException:
-            await msg.channel.send("Cannot play this song.")
+            await msg.channel.send("**Cannot play this song.**")
             await msg.delete()
             return False
-    await msg.channel.send(f"{url} added to the que.")
+    await msg.channel.send(f"{url} **added to the que.**")
     await msg.delete()
     return True
 
 
-async def add_to_que(content, guild_id, msg):
+def yt_search(search):
+    query_string = urllib.parse.urlencode({'search_query': search})
+    htm_content = urllib.request.urlopen('http://www.youtube.com/results?' + query_string)
+    search_results = re.findall(r'/watch\?v=(.{11})', htm_content.read().decode())
+    return "https://www.youtu.be/" + search_results[0]
+
+
+async def add_to_que(arg, guild_id, msg):
     # server - channel - voice client - songs_to_play
 
     # Parsing the arguments
-    args = content.split(" ")
-    args = (filter("".__ne__, args))
-    args = [i for i in args]
-    url = args[1]
+    url = arg
 
     # Downloading the song if needed
     file_name = format_word(url)
