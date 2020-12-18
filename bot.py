@@ -1,19 +1,23 @@
+from pytube import YouTube
+import os
 import asyncio
-
 import requests
-from discord import Game
+from discord import Game, VoiceClient
 from discord import Client
 from discord import Intents
+import discord
 import random
 import math
 import sqlite3
+from pytube.exceptions import RegexMatchError
 
 TOKEN = ''
-print(TOKEN)
 
 intents = Intents.default()
 intents.members = True
 client = Client(intents=intents)
+# server - channel - voice client - songs_to_play
+voice_clients = {}
 
 
 class CustomException(Exception):
@@ -99,12 +103,12 @@ async def on_message(msg):
             try:
                 first = 1
                 second = int(split_msg[1])
-                send_msg = '{0} threw {1}'.format(msg.author.mention, str(random.randint(first, second)))
+                send_msg = '{0} threw {1}!'.format(msg.author.mention, str(random.randint(first, second)))
                 await msg.channel.send(send_msg)
             except ValueError:
                 await msg.channel.send('Please enter a number {0}'.format(msg.author.mention))
         else:
-            await msg.channel.send('{0} threw {1}'.format(msg.author.mention, str(random.randint(1, 6))))
+            await msg.channel.send('{0} threw {1}!'.format(msg.author.mention, str(random.randint(1, 6))))
 
     # Bitcoin
     elif msg.content.startswith(".bitcoin") or msg.content.startswith("!btc"):
@@ -344,7 +348,7 @@ async def on_message(msg):
         if message == "```":
             await msg.channel.send("**There is no homework**")
         else:
-            await msg.channel.send("> **This is the homework, that needs to be done:**\n" + message + "```")
+            await msg.channel.send("> **This is the homework that needs to be done:**\n" + message + "```")
 
     # Save homework
     elif msg.content.startswith(".save_homework") or msg.content.startswith(".shw"):
@@ -475,6 +479,43 @@ async def on_message(msg):
             await msg.channel.send("To many arguments, please only add the index of the homework that you want removed"
                                    " -> .rmt [index] -> example: .rmt 2")
 
+    # Easter egg
+    elif msg.content.startswith(".bot"):
+        await msg.channel.send("Yes, I am a robot, what else did you think I am: "
+                               "https://www.youtube.com/watch?v=fsF7enQY8uI")
+
+    # Playing music
+    elif msg.content.startswith(".p") or msg.content.startswith(".play"):
+
+        # Add a new voice client if not exists
+        if guild_id not in voice_clients:
+            user = msg.author
+            channel = user.voice.channel
+            await channel.connect()
+            guild = msg.guild
+            voice_client: VoiceClient = discord.utils.get(client.voice_clients, guild=guild)
+            voice_clients[guild_id] = [guild_id, channel, voice_client, []]
+
+        else:
+            guild_id, channel, voice_client, ignored = voice_clients[guild_id]
+            if not voice_client.is_connected():
+                await channel.connect()
+
+        # Add the song to query
+        await add_to_que(msg.content, guild_id, msg)
+
+        await play_next_song(None, guild_id)
+
+    # Skipping a song
+    elif msg.content.startswith(".skip") or msg.content.startswith(".next"):
+        guild_id, channel, voice_client, ignored = voice_clients[guild_id]
+        if voice_client.is_playing():
+            await msg.channel.send("**Skipped the song.**")
+            voice_client.stop()
+            await play_next_song(None, guild_id)
+        else:
+            await msg.channel.send("**Cannot skip, no song playing.**")
+
     # Help
     elif msg.content.startswith(".help"):
         message = "> **Info:**\n```" \
@@ -518,13 +559,22 @@ async def on_message(msg):
                   ".homework  - Lists the upcoming homework\n" \
                   "           * Usage: .homework\n" \
                   "           $ Aliases: [.homework, .hw]\n" \
+                  "```"
+        await msg.channel.send(message)
+        message = "```" +\
                   ".shw       - Saves the homework\n" \
                   "           * Usage: .shw [subject] [hour:minute] [day.month] [*content]\n" \
                   "           + [*content] -> Can be provided without quotation marks\n" \
                   "           $ Aliases: [.shw, .save_homework]\n" \
                   ".rhw       - Removes a homework from the list\n" \
                   "           * Usage: .rhw [index]\n" \
-                  "           $ Aliases: [.rmhw, .remove_homework, .rhw]" \
+                  "           $ Aliases: [.rmhw, .remove_homework, .rhw]\n" \
+                  ".play      - Plays music from youtube\n" \
+                  "           * Usage: .play [youtube_link]\n" \
+                  "           $ Aliases: [.play, .p]\n" \
+                  ".skip      - Skips a song\n" \
+                  "           * Usage: .skip\n" \
+                  "           $ Aliases: [.skip, .next]" \
                   "```"
         await msg.channel.send(message)
 
@@ -555,6 +605,73 @@ async def list_servers():
             for member in guild.members:
                 print("  >", member)
         await asyncio.sleep(3600)
+
+
+async def play_next_song(args, guild_id):
+    def next_song(passed_guild_id):
+        passed_guild_id, channel, voice_client, songs = voice_clients[passed_guild_id]
+        if songs:
+            if not voice_client.is_playing():
+                audio_source = discord.FFmpegPCMAudio("songs\\" + songs[0] + ".mp3",
+                                                      executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
+                songs.remove(songs[0])
+                voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
+                voice_client.play(audio_source, after=lambda e: next_song(passed_guild_id))
+
+    next_song(guild_id)
+
+
+async def download_if_not_exists(file_name, url, msg):
+    if not file_name + ".mp3" in os.listdir("songs\\"):
+        try:
+            download_msg = await msg.channel.send("Attempting to download the song...")
+            yt = YouTube(url)
+            try:
+                yt.streams.filter(only_audio=True).first().download(filename=file_name)
+            except AttributeError:
+                try:
+                    yt.streams.filter(only_audio=True).last().download(filename=file_name)
+                except AttributeError:
+                    try:
+                        yt.streams.filter(only_audio=True).get_audio_only().download(filename=file_name)
+                    except AttributeError:
+                        raise CustomException
+            os.rename(file_name + ".mp4", "songs\\" + file_name + ".mp3")
+            await msg.channel.send(f"{url} added to the que.")
+            await msg.delete()
+            await download_msg.delete()
+            return True
+        except RegexMatchError:
+            await msg.channel.send("Invalid youtube url!")
+            return False
+        except CustomException:
+            await msg.channel.send("Cannot play this song.")
+            await msg.delete()
+            return False
+    await msg.channel.send(f"{url} added to the que.")
+    await msg.delete()
+    return True
+
+
+async def add_to_que(content, guild_id, msg):
+    # server - channel - voice client - songs_to_play
+
+    # Parsing the arguments
+    args = content.split(" ")
+    args = (filter("".__ne__, args))
+    args = [i for i in args]
+    url = args[1]
+
+    # Downloading the song if needed
+    file_name = format_word(url)
+    valid_song = await download_if_not_exists(file_name, url, msg)
+    if valid_song:
+        voice_clients[guild_id][3].append(file_name)
+
+
+def format_word(value):
+    value = "".join(x for x in value if x.isalnum())
+    return value
 
 
 def is_level_up(experience, level):
