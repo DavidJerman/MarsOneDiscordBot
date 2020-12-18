@@ -73,10 +73,11 @@ async def on_message(msg):
         msg_send = "Goodbye " + msg.author.mention + "!"
         await msg.channel.send(msg_send)
 
-    # Experimental
     # Sqrt
     elif msg.content.startswith(".sqrt") or msg.content.startswith("._/"):
         split_msg = msg.content.split(" ")
+        split_msg = (filter("".__ne__, split_msg))
+        split_msg = [i for i in split_msg]
         number = split_msg[1]
         if number is not None:
             try:
@@ -92,6 +93,8 @@ async def on_message(msg):
     # Dice
     elif msg.content.startswith(".dice"):
         split_msg = msg.content.split(" ")
+        split_msg = (filter("".__ne__, split_msg))
+        split_msg = [i for i in split_msg]
         if len(split_msg) > 1:
             try:
                 first = 1
@@ -111,9 +114,37 @@ async def on_message(msg):
         await msg.channel.send('Bitcoin value is: {0}$'.format(value))
 
     # Poll
-    elif msg.content.startswith(".poll") or msg.content.startswith(".pol"):
-        args = msg.content.split(" ")
-        args = args[1:]
+    elif msg.content.startswith(".poll "):
+        args = []
+        in_word = False
+        word = ""
+        description = msg.content[6:]
+
+        # Parse the input
+        for s in description.split(" "):
+            s = s.rstrip()
+            s = s.lstrip()
+            if s == "":
+                continue
+            if "\"" in s:
+
+                if s[0] == "\"" and s[len(s) - 1] == "\"":
+                    args.append(s[1:-1])
+                elif not in_word:
+                    word += s[1:] + " "
+                    in_word = True
+                else:
+                    word += s[:-1]
+                    in_word = False
+                    args.append(word)
+                    word = ""
+            elif in_word:
+                word += s + " "
+            else:
+                args.append(s)
+        if word != "" and word != " ":
+            args.append(word)
+
         text = ""
         opts = []
         emojis = '🟥🟧🟨🟩🟦🟪⬛🟫⬜🔴🟠🟡🟢🔵🟣⚫⚪🟤'
@@ -127,7 +158,6 @@ async def on_message(msg):
                             passed = True
                         else:
                             opts.append(arg)
-                    print(opts)
                     for i in range(0, len(opts)):
                         text += '\n' + emojis[i] + ' - ' + opts[i]
                     _message = await msg.channel.send(text)
@@ -138,7 +168,7 @@ async def on_message(msg):
             except:
                 await msg.channel.send("Something went wrong, try again.")
 
-    # Get Exams
+    # Get exams
     elif msg.content.startswith(".exam") or msg.content.startswith(".t") or msg.content.startswith(".test") \
             or msg.content.startswith(".tst"):
         # Create table if not exists
@@ -147,21 +177,70 @@ async def on_message(msg):
                           PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
         # Get the data
         cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM exams
-                           WHERE server_id = {guild_id}''')
+                           WHERE server_id = {guild_id}
+                           ORDER BY months, days, hours, minutes, subject, content''')
         message = "```"
+        c = 0
         for exam in cursor.fetchall():
-            line = f"| {exam[0]} | {exam[3]}:{exam[4]} | {exam[1]}.{exam[2]} | {exam[5]} |"
+            c += 1
+            line = f"{c} | {exam[0]} | {exam[3]}:{exam[4]} | {exam[1]}.{exam[2]} | {exam[5]} |"
             message += line + "\n"
         if message == "```":
             await msg.channel.send("**No upcoming tests**")
         else:
             await msg.channel.send("> **These are the upcoming exams:**\n" + message + "```")
 
+    # Remove exam
+    elif msg.content.startswith(".rmt") or msg.content.startswith(".remove_exam") or msg.content.startswith(".rmtest")\
+            or msg.content.startswith(".rme") or msg.content.startswith(".rt") or msg.content.startswith(".re") or \
+            msg.content.startswith(".rmexam"):
+        split_msg = msg.content.split(" ")
+        split_msg = (filter("".__ne__, split_msg))
+        split_msg = [i for i in split_msg]
+        if len(split_msg) == 2:
+            # Create table if not exists
+            cursor.execute('''CREATE TABLE IF NOT EXISTS exams
+                              (server_id int, subject String, hours int, minutes int, days int, months int,
+                               content String,
+                              PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+            # Get the data
+            cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM exams
+                               WHERE server_id = {guild_id}
+                               ORDER BY months, days, hours, minutes, subject, content''')
+            try:
+                c = int(split_msg[1])
+                for exam in cursor.fetchall():
+                    if c > 1:
+                        c -= 1
+                        continue
+                    elif c == 1:
+
+                        cursor.execute(f'''
+                        DELETE FROM exams WHERE server_id = {guild_id} AND subject = "{exam[0]}" AND hours = {exam[1]}
+                         AND minutes = {exam[2]} AND days = {exam[3]} AND months = {exam[4]} AND content = "{exam[5]}"
+                        ''')
+                        connection.commit()
+                        await msg.channel.send("Exam removed!")
+                        break
+                    else:
+                        await msg.channel.send("Index out of bounds.")
+            except ValueError:
+                await msg.channel.send("Please enter the correct parameters -> .rmt [index] -> example: .rmt 2")
+
+        elif len(split_msg) <= 1:
+            await msg.channel.send("To few arguments, please add the index of the homework that you want removed"
+                                   " -> .rmt [index] -> example: .rmt 2")
+        else:
+            await msg.channel.send("To many arguments, please only add the index of the homework that you want removed"
+                                   " -> .rmt [index] -> example: .rmt 2")
+
     # Save exam
     elif msg.content.startswith(".save_exam") or msg.content.startswith(".st") or msg.content.startswith(".stest"):
 
         # Subject -  time -  date - content
         split_content = msg.content.split(" ")
+        split_content = (filter("".__ne__, split_content))
+        split_content = [i for i in split_content]
         if len(split_content) >= 5:
             split_content = split_content[1:]
             subject_name = split_content[0]
@@ -201,7 +280,10 @@ async def on_message(msg):
                             # Content
                             content = ""
                             description = split_content[3:]
-                            if len(description) > 1:
+                            if description[0].rstrip()[0] == "\"" and description[0].rstrip()[len(description[0]) - 1]\
+                                    == "\"":
+                                content = description[0][1:-1]
+                            elif len(description) > 1:
                                 for s in split_content[3:]:
                                     content += s.strip('"') + " "
                             else:
@@ -211,7 +293,8 @@ async def on_message(msg):
                             # Create table if not exists
                             cursor.execute('''
                             CREATE TABLE IF NOT EXISTS exams
-                            (server_id int, subject String, hours int, minutes int, days int, months int, content String,
+                            (server_id int, subject String, hours int, minutes int, days int, months int,
+                             content String, 
                              PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
                             # Save the exam
                             try:
@@ -249,11 +332,14 @@ async def on_message(msg):
                           (server_id int, subject String, hours int, minutes int, days int, months int, content String,
                           PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
         # Get the data
-        cursor.execute(f'''SELECT (subject, hours, minutes, days, months, content) FROM homeworks
-                           WHERE server_id = {guild_id}''')
+        cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM homeworks
+                           WHERE server_id = {guild_id}
+                           ORDER BY months, days, hours, minutes, subject, content''')
         message = "```"
+        c = 0
         for exam in cursor.fetchall():
-            line = f"| {exam[0]} | {exam[3]}:{exam[4]} | {exam[1]}.{exam[2]} | {exam[5]} |"
+            c += 1
+            line = f"{c} | {exam[0]} | {exam[3]}:{exam[4]} | {exam[1]}.{exam[2]} | {exam[5]} |"
             message += line + "\n"
         if message == "```":
             await msg.channel.send("**There is no homework**")
@@ -265,6 +351,8 @@ async def on_message(msg):
 
         # Subject -  time -  date - content
         split_content = msg.content.split(" ")
+        split_content = (filter("".__ne__, split_content))
+        split_content = [i for i in split_content]
         if len(split_content) >= 5:
             split_content = split_content[1:]
             subject_name = split_content[0]
@@ -303,14 +391,17 @@ async def on_message(msg):
 
                             # Content
                             content = ""
-                            for s in split_content[3:]:
-                                content += s.strip('"') + " "
+                            description = split_content[3:]
+                            if description[0].rstrip()[0] == "\"" and description[0].rstrip()[len(description[0]) - 1] \
+                                    == "\"":
+                                content = description[0][1:-1]
 
                             # Save the exam in the database
                             # Create table if not exists
                             cursor.execute('''
                             CREATE TABLE IF NOT EXISTS homeworks
-                            (server_id int, subject String, hours int, minutes int, days int, months int, content String,
+                            (server_id int, subject String, hours int, minutes int, days int, months int,
+                             content String,
                              PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
                             # Save the exam
                             try:
@@ -341,12 +432,54 @@ async def on_message(msg):
         else:
             await msg.channel.send("Not enough arguments")
 
-    # TODO
+    # Remove homework
+    elif msg.content.startswith(".rmhw") or msg.content.startswith(".remove_homework") or\
+            msg.content.startswith(".rhw"):
+        split_msg = msg.content.split(" ")
+        split_msg = (filter("".__ne__, split_msg))
+        split_msg = [i for i in split_msg]
+        if len(split_msg) == 2:
+            # Create table if not exists
+            cursor.execute('''CREATE TABLE IF NOT EXISTS homeworks
+                              (server_id int, subject String, hours int, minutes int, days int, months int,
+                               content String,
+                              PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+            # Get the data
+            cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM homeworks
+                               WHERE server_id = {guild_id}
+                               ORDER BY months, days, hours, minutes, subject, content''')
+            try:
+                c = int(split_msg[1])
+                for exam in cursor.fetchall():
+                    if c > 1:
+                        c -= 1
+                        continue
+                    elif c == 1:
+
+                        cursor.execute(f'''
+                        DELETE FROM homeworks WHERE server_id = {guild_id} AND subject = "{exam[0]}" AND hours = {exam[1]}
+                         AND minutes = {exam[2]} AND days = {exam[3]} AND months = {exam[4]} AND content = "{exam[5]}"
+                        ''')
+                        connection.commit()
+                        await msg.channel.send("Homework removed!")
+                        break
+                    else:
+                        await msg.channel.send("Index out of bounds.")
+            except ValueError:
+                await msg.channel.send("Please enter the correct parameters -> .rmt [index] -> example: .rmt 2")
+
+        elif len(split_msg) <= 1:
+            await msg.channel.send("To few arguments, please add the index of the homework that you want removed"
+                                   " -> .rmt [index] -> example: .rmt 2")
+        else:
+            await msg.channel.send("To many arguments, please only add the index of the homework that you want removed"
+                                   " -> .rmt [index] -> example: .rmt 2")
+
     # Help
     elif msg.content.startswith(".help"):
         message = "> **Info:**\n```" \
-                  "When passing multi-word arguments as one argument, please wrap the argument with quotation marks" \
-                  " like this: (\"This is an argument\").\n" \
+                  "When passing multi-word arguments as one argument, please wrap the argument with quotation" \
+                  " marks like this: (\"This is an argument\").\n" \
                   "A star sign * before the argument means, that the argument is optional: *[argument].\n" \
                   "A star sing * in the argument means, that the argument can consist of multiple words:" \
                   " [*argument].```\n" \
@@ -371,7 +504,7 @@ async def on_message(msg):
                   "           $ Aliases: [.bitcoin, .btc]\n" \
                   ".poll      - Creates a poll\n" \
                   "           * Usage: .poll [text] [*options]\n" \
-                  "           $ Aliases: [.poll, .pol]\n" \
+                  "           $ Aliases: [.poll]\n" \
                   ".exam      - Lists the upcoming exams\n" \
                   "           * Usage: .exam\n" \
                   "           $ Aliases: [.exam, .t, .test, .tst]\n" \
@@ -379,6 +512,9 @@ async def on_message(msg):
                   "           * Usage: .save_exam [subject] [hour:minute] [day.month] [*content]\n" \
                   "           + [*content] -> Can be provided without quotation marks\n" \
                   "           $ Aliases: [.save_exam, .st, .stest]\n" \
+                  ".rme       - Removes a test from the list\n" \
+                  "           * Usage: .rmt [index]\n" \
+                  "           $ Aliases: [.rmt, .remove_exam, .rmtest, .rmexam, .rme, .rt, .re]\n" \
                   ".homework  - Lists the upcoming homework\n" \
                   "           * Usage: .homework\n" \
                   "           $ Aliases: [.homework, .hw]\n" \
@@ -386,9 +522,14 @@ async def on_message(msg):
                   "           * Usage: .shw [subject] [hour:minute] [day.month] [*content]\n" \
                   "           + [*content] -> Can be provided without quotation marks\n" \
                   "           $ Aliases: [.shw, .save_homework]\n" \
-                  "" \
+                  ".rhw       - Removes a homework from the list\n" \
+                  "           * Usage: .rhw [index]\n" \
+                  "           $ Aliases: [.rmhw, .remove_homework, .rhw]" \
                   "```"
         await msg.channel.send(message)
+
+    else:
+        pass
 
     cursor.close()
 
