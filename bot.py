@@ -6,6 +6,7 @@ import re
 import sqlite3
 import urllib.parse
 import urllib.request
+import datetime
 
 import discord
 import requests
@@ -15,7 +16,7 @@ from discord import Intents
 from pytube import YouTube
 from pytube.exceptions import RegexMatchError
 
-TOKEN = ''
+TOKEN = 'Nzg4ODk4NTg1NTYzMTAzMjg0.X9qNDw.ayZE0-j4-W9bWNq6gGiWzDxtP6M'
 
 intents = Intents.default()
 intents.members = True
@@ -105,6 +106,31 @@ async def on_message(msg):
     elif msg.content.startswith(".bye") or msg.content.startswith(".cya") or msg.content.startswith(".goodbye"):
         msg_send = "Goodbye " + msg.author.mention + "!"
         await msg.channel.send(msg_send)
+
+    # Get date
+    elif msg.content.startswith(".date") or msg.content.startswith(".time") or msg.content.startswith(".datetime"):
+        await msg.channel.send(f"These are the current date and time: "
+                               f"{datetime.datetime.now().strftime('%d.%m.%Y - %H:%M:%S')}")
+
+    # Kill
+    elif msg.content.startswith(".kill"):
+        split_msg = msg.content.split(" ")
+        split_msg = (filter("".__ne__, split_msg))
+        split_msg = [i for i in split_msg]
+        sp_methods = ["murdered",
+                      "killed"]
+        c_methods = ["killed himself.",
+                     "committed suicide.",
+                     "committed sepuku."]
+        if len(split_msg) > 1:
+            if random.randint(0, 1) == 1:
+                target = split_msg[1]
+                await msg.channel.send(f"{msg.author.mention} {random.choice(sp_methods)} {target}.")
+            else:
+                target = split_msg[1]
+                await msg.channel.send(f"{msg.author.mention} failed at killing {target}.")
+        else:
+            await msg.channel.send(f"{msg.author.mention} {random.choice(c_methods)}.")
 
     # Sqrt
     elif msg.content.startswith(".sqrt") or msg.content.startswith("._/"):
@@ -205,18 +231,20 @@ async def on_message(msg):
     elif msg.content.startswith(".exam") or msg.content.startswith(".t") or msg.content.startswith(".test") \
             or msg.content.startswith(".tst"):
         # Create table if not exists
+        # Create table if not exists
         cursor.execute('''CREATE TABLE IF NOT EXISTS exams
-                          (server_id int, subject String, hours int, minutes int, days int, months int, content String,
-                          PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+                          (server_id int, subject String, years int, hours int, minutes int, days int, months int,
+                           content String,
+                          PRIMARY KEY (server_id, subject, years, months, days, hours, minutes, content))''')
         # Get the data
-        cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM exams
+        cursor.execute(f'''SELECT subject, years, months, days, hours, minutes, content FROM exams
                            WHERE server_id = {guild_id}
-                           ORDER BY months, days, hours, minutes, subject, content''')
+                           ORDER BY years, months, days, hours, minutes, subject, content''')
         message = "```"
         c = 0
         for exam in cursor.fetchall():
             c += 1
-            line = f"{c} | {exam[0]} | {exam[3]}:{exam[4]} | {exam[1]}.{exam[2]} | {exam[5]} |"
+            line = f"{c} | {exam[0]} | {exam[4]}:{exam[5]} | {exam[3]}.{exam[2]}.{exam[1]} | {exam[6]}|"
             message += line + "\n"
         if message == "```":
             await msg.channel.send("**No upcoming tests**")
@@ -233,13 +261,13 @@ async def on_message(msg):
         if len(split_msg) == 2:
             # Create table if not exists
             cursor.execute('''CREATE TABLE IF NOT EXISTS exams
-                              (server_id int, subject String, hours int, minutes int, days int, months int,
-                               content String,
-                              PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+                              (server_id int, subject String, years int, months int, days int, hours int, minutes int,
+                             content String,
+                             PRIMARY KEY (server_id, subject, years, months, days, hours, minutes, content))''')
             # Get the data
-            cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM exams
+            cursor.execute(f'''SELECT subject, years, months, days, hours, minutes, content FROM exams
                                WHERE server_id = {guild_id}
-                               ORDER BY months, days, hours, minutes, subject, content''')
+                               ORDER BY years, months, days, hours, minutes, subject, content''')
             try:
                 c = int(split_msg[1])
                 for exam in cursor.fetchall():
@@ -247,10 +275,10 @@ async def on_message(msg):
                         c -= 1
                         continue
                     elif c == 1:
-
                         cursor.execute(f'''
-                        DELETE FROM exams WHERE server_id = {guild_id} AND subject = "{exam[0]}" AND hours = {exam[1]}
-                         AND minutes = {exam[2]} AND days = {exam[3]} AND months = {exam[4]} AND content = "{exam[5]}"
+                        DELETE FROM exams WHERE server_id = {guild_id} AND subject = "{exam[0]}"
+                         AND years = {exam[1]} AND hours = {exam[4]} AND minutes = {exam[5]} AND days = {exam[3]}
+                         AND months = {exam[2]} AND content = "{exam[6]}"
                         ''')
                         connection.commit()
                         await msg.channel.send("Exam removed!")
@@ -326,14 +354,20 @@ async def on_message(msg):
                             # Create table if not exists
                             cursor.execute('''
                             CREATE TABLE IF NOT EXISTS exams
-                            (server_id int, subject String, hours int, minutes int, days int, months int,
-                             content String, 
-                             PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+                            (server_id int, subject String, years int, months int, days int, hours int, minutes int,
+                             content String,
+                             PRIMARY KEY (server_id, subject, years, months, days, hours, minutes, content))''')
                             # Save the exam
                             try:
+                                # Getting the correct date
+                                current_year = int(datetime.datetime.now().strftime("%Y"))
+                                if below_current_date(month, day, hour, minute):
+                                    current_year += 1
+
                                 cursor.execute(f'''
                                 INSERT INTO exams 
-                                VALUES ({guild_id}, "{subject_name}", {hour}, {minute}, {day}, {month}, "{content}")
+                                VALUES ({guild_id}, "{subject_name}", {current_year}, {hour}, {minute}, {day}, {month},
+                                 "{content}")
                                 ''')
                                 await msg.channel.send("Exam saved!")
                             except sqlite3.IntegrityError:
@@ -362,17 +396,18 @@ async def on_message(msg):
     elif msg.content.startswith(".homework") or msg.content.startswith(".hw"):
         # Create table if not exists
         cursor.execute('''CREATE TABLE IF NOT EXISTS homeworks
-                          (server_id int, subject String, hours int, minutes int, days int, months int, content String,
-                          PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+                          (server_id int, subject String, years int, hours int, minutes int, days int, months int,
+                           content String,
+                          PRIMARY KEY (server_id, subject, years, months, days, hours, minutes, content))''')
         # Get the data
-        cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM homeworks
+        cursor.execute(f'''SELECT subject, years, months, days, hours, minutes, content FROM homeworks
                            WHERE server_id = {guild_id}
-                           ORDER BY months, days, hours, minutes, subject, content''')
+                           ORDER BY years, months, days, hours, minutes, subject, content''')
         message = "```"
         c = 0
         for exam in cursor.fetchall():
             c += 1
-            line = f"{c} | {exam[0]} | {exam[3]}:{exam[4]} | {exam[1]}.{exam[2]} | {exam[5]} |"
+            line = f"{c} | {exam[0]} | {exam[4]}:{exam[5]} | {exam[3]}.{exam[2]}.{exam[1]} | {exam[6]}|"
             message += line + "\n"
         if message == "```":
             await msg.channel.send("**There is no homework**")
@@ -425,22 +460,29 @@ async def on_message(msg):
                             # Content
                             content = ""
                             description = split_content[3:]
-                            if description[0].rstrip()[0] == "\"" and description[0].rstrip()[len(description[0]) - 1] \
-                                    == "\"":
-                                content = description[0][1:-1]
+                            split_description = (filter("".__ne__, description))
+                            split_description = [i for i in split_description]
+                            for s in split_description:
+                                content += s + " "
 
-                            # Save the exam in the database
+                            # Save the homework in the database
                             # Create table if not exists
                             cursor.execute('''
                             CREATE TABLE IF NOT EXISTS homeworks
-                            (server_id int, subject String, hours int, minutes int, days int, months int,
+                            (server_id int, subject String, years int, months int, days int, hours int, minutes int,
                              content String,
-                             PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
-                            # Save the exam
+                             PRIMARY KEY (server_id, subject, years, months, days, hours, minutes, content))''')
+                            # Save the homework
                             try:
+                                # Getting the correct date
+                                current_year = int(datetime.datetime.now().strftime("%Y"))
+                                if below_current_date(month, day, hour, minute):
+                                    current_year += 1
+
                                 cursor.execute(f'''
                                 INSERT INTO homeworks 
-                                VALUES ({guild_id}, "{subject_name}", {hour}, {minute}, {day}, {month}, "{content}")
+                                VALUES ({guild_id}, "{subject_name}", {current_year}, {hour}, {minute}, {day}, {month},
+                                 "{content}")
                                 ''')
                                 await msg.channel.send("Homework saved!")
                             except sqlite3.IntegrityError:
@@ -474,24 +516,24 @@ async def on_message(msg):
         if len(split_msg) == 2:
             # Create table if not exists
             cursor.execute('''CREATE TABLE IF NOT EXISTS homeworks
-                              (server_id int, subject String, hours int, minutes int, days int, months int,
-                               content String,
-                              PRIMARY KEY (server_id, subject, hours, minutes, days, months, content))''')
+                              (server_id int, subject String, years int, months int, days int, hours int, minutes int,
+                             content String,
+                             PRIMARY KEY (server_id, subject, years, months, days, hours, minutes, content))''')
             # Get the data
-            cursor.execute(f'''SELECT subject, hours, minutes, days, months, content FROM homeworks
+            cursor.execute(f'''SELECT subject, years, months, days, hours, minutes, content FROM homeworks
                                WHERE server_id = {guild_id}
-                               ORDER BY months, days, hours, minutes, subject, content''')
+                               ORDER BY years, months, days, hours, minutes, subject, content''')
             try:
                 c = int(split_msg[1])
-                for exam in cursor.fetchall():
+                for hw in cursor.fetchall():
                     if c > 1:
                         c -= 1
                         continue
                     elif c == 1:
-
                         cursor.execute(f'''
-                        DELETE FROM homeworks WHERE server_id = {guild_id} AND subject = "{exam[0]}" AND hours = {exam[1]}
-                         AND minutes = {exam[2]} AND days = {exam[3]} AND months = {exam[4]} AND content = "{exam[5]}"
+                        DELETE FROM homeworks WHERE server_id = {guild_id} AND subject = "{hw[0]}"
+                         AND years = {hw[1]} AND hours = {hw[4]} AND minutes = {hw[5]} AND days = {hw[3]}
+                         AND months = {hw[2]} AND content = "{hw[6]}"
                         ''')
                         connection.commit()
                         await msg.channel.send("Homework removed!")
@@ -658,12 +700,6 @@ async def on_ready():
     print("Logged in as " + client.user.name)
 
 
-@client.event
-async def on_member_join(member):
-    await member.create_dm()
-    await member.dm_channel.send(f'Welcome in the server {member.name}!')
-
-
 async def list_servers():
     await client.wait_until_ready()
     while not client.is_closed():
@@ -759,6 +795,20 @@ def is_level_up(experience, level):
         return True
     else:
         return False
+
+
+def below_current_date(month, day, hour, minute):
+    current_datetime = datetime.datetime.now()
+    current_month = int(current_datetime.strftime("%m"))
+    current_day = int(current_datetime.strftime("%d"))
+    current_hour = int(current_datetime.strftime("%H"))
+    current_minute = int(current_datetime.strftime("%M"))
+    if month >= current_month:
+        if day >= current_day:
+            if hour >= current_hour:
+                if minute > current_minute:
+                    return False
+    return True
 
 
 client.loop.create_task(list_servers())
