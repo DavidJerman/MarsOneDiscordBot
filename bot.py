@@ -16,7 +16,7 @@ from discord import Intents
 from pytube import YouTube
 from pytube.exceptions import RegexMatchError
 
-TOKEN = 'Nzg4ODk4NTg1NTYzMTAzMjg0.X9qNDw.ayZE0-j4-W9bWNq6gGiWzDxtP6M'
+TOKEN = ''
 
 intents = Intents.default()
 intents.members = True
