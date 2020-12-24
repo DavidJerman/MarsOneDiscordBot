@@ -693,6 +693,10 @@ async def on_message(msg):
                   ".rhw       - Removes a homework from the list\n" \
                   "           * Usage: .rhw [index]\n" \
                   "           $ Aliases: [.rmhw, .remove_homework, .rhw]\n" \
+                  ".level     - Shows the user level\n" \
+                  "           * Usage: .level\n" \
+                  "           & Aliases: [.level, .lvl]\n" \
+                  "Experimental features:\n" \
                   ".play      - Plays music from youtube\n" \
                   "           * Usage: .play [youtube_link]\n" \
                   "           $ Aliases: [.play, .p]\n" \
@@ -701,10 +705,7 @@ async def on_message(msg):
                   "           $ Aliases: [.skip, .next]\n" \
                   ".quit      - Disconnects from the voice channel\n" \
                   "           * Usage: .quit\n" \
-                  "           $ Aliases: [.quit, .exit, .fuckoff, .getout, .disconnect]\n" \
-                  ".level     - Shows the user level\n" \
-                  "           * Usage: .level\n" \
-                  "           & Aliases: [.level, .lvl]" \
+                  "           $ Aliases: [.quit, .exit, .fuckoff, .getout, .disconnect]" \
                   "```"
         await msg.channel.send(message)
 
@@ -737,7 +738,7 @@ async def play_next_song(guild_id):
             passed_guild_id, channel, voice_client, songs = voice_clients[passed_guild_id]
             if songs:
                 if not voice_client.is_playing():
-                    audio_source = discord.FFmpegPCMAudio("songs\\" + songs[0] + ".mp3",
+                    audio_source = discord.FFmpegPCMAudio("./songs/" + songs[0] + ".mp3",
                                                           executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
                     songs.remove(songs[0])
                     voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
@@ -746,7 +747,7 @@ async def play_next_song(guild_id):
 
 
 async def download_if_not_exists(file_name, url, msg):
-    if not file_name + ".mp3" in os.listdir("songs\\"):
+    if not file_name + ".mp3" in os.listdir("./songs/"):
         try:
             download_msg = await msg.channel.send("*Attempting to download the song...*")
             yt = YouTube(url)
@@ -760,7 +761,7 @@ async def download_if_not_exists(file_name, url, msg):
                         yt.streams.filter(only_audio=True).get_audio_only().download(filename=file_name)
                     except AttributeError:
                         raise CustomException
-            os.rename(file_name + ".mp4", "songs\\" + file_name + ".mp3")
+            os.rename(file_name + ".mp4", "./songs/" + file_name + ".mp3")
             await msg.channel.send(f"{url} **added to the que.**")
             await msg.delete()
             await download_msg.delete()
