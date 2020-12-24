@@ -600,6 +600,11 @@ async def on_message(msg):
             else:
                 guild_id, channel, voice_client, ignored = voice_clients[guild_id]
                 if not voice_client.is_connected():
+                    try:
+                        voice_client.stop()
+                    except:
+                        pass
+                    del voice_clients[guild_id]
                     user = msg.author
                     channel = user.voice.channel
                     await channel.connect()
@@ -638,6 +643,7 @@ async def on_message(msg):
             msg.content.startswith(".getout") or msg.content.startswith(".disconnect"):
         guild_id, channel, voice_client, ignored = voice_clients[guild_id]
         await voice_client.voice_disconnect()
+        await msg.channel.send("Goodbye!")
         del voice_clients[guild_id]
 
     # Help
@@ -742,11 +748,12 @@ async def play_next_song(guild_id):
             passed_guild_id, channel, voice_client, songs = voice_clients[passed_guild_id]
             if songs:
                 if not voice_client.is_playing():
-                    audio_source = discord.FFmpegPCMAudio("./songs/" + songs[0] + ".mp3",
-                                                          executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
-                    songs.remove(songs[0])
-                    voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
-                    voice_client.play(audio_source, after=lambda e: next_song(passed_guild_id))
+                    if voice_client.is_connected():
+                        audio_source = discord.FFmpegPCMAudio("./songs/" + songs[0] + ".mp3",
+                                                              executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
+                        songs.remove(songs[0])
+                        voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
+                        voice_client.play(audio_source, after=lambda e: next_song(passed_guild_id))
     next_song(guild_id)
 
 
