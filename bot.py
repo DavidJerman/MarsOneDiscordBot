@@ -356,7 +356,7 @@ async def on_message(msg):
                                 for s in split_content[3:]:
                                     content += s.strip('"') + " "
                             else:
-                                content = description[1:-2]
+                                content = description[0] + " "
 
                             # Save the exam in the database
                             # Create table if not exists
@@ -374,7 +374,7 @@ async def on_message(msg):
 
                                 cursor.execute(f'''
                                 INSERT INTO exams 
-                                VALUES ({guild_id}, "{subject_name}", {current_year}, {hour}, {minute}, {day}, {month},
+                                VALUES ({guild_id}, "{subject_name}", {current_year}, {month}, {day}, {hour}, {minute},
                                  "{content}")
                                 ''')
                                 await msg.channel.send("Exam saved!")
@@ -476,10 +476,14 @@ async def on_message(msg):
                             # Content
                             content = ""
                             description = split_content[3:]
-                            split_description = (filter("".__ne__, description))
-                            split_description = [i for i in split_description]
-                            for s in split_description:
-                                content += s + " "
+                            if description[0].rstrip()[0] == "\"" and description[0].rstrip()[len(description[0]) - 1] \
+                                    == "\"":
+                                content = description[0][1:-1]
+                            elif len(description) > 1:
+                                for s in split_content[3:]:
+                                    content += s.strip('"') + " "
+                            else:
+                                content = description[0] + " "
 
                             # Save the homework in the database
                             # Create table if not exists
@@ -497,7 +501,7 @@ async def on_message(msg):
 
                                 cursor.execute(f'''
                                 INSERT INTO homeworks 
-                                VALUES ({guild_id}, "{subject_name}", {current_year}, {hour}, {minute}, {day}, {month},
+                                VALUES ({guild_id}, "{subject_name}", {current_year}, {month}, {day}, {hour}, {minute},
                                  "{content}")
                                 ''')
                                 await msg.channel.send("Homework saved!")
