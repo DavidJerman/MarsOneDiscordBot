@@ -813,6 +813,22 @@ def is_level_up(experience, level):
         return True
     elif experience > 1000 and level < 5:
         return True
+    elif experience > 2000 and level < 6:
+        return True
+    elif experience > 5000 and level < 7:
+        return True
+    elif experience > 10000 and level < 8:
+        return True
+    elif experience > 20000 and level < 9:
+        return True
+    elif experience > 50000 and level < 10:
+        return True
+    elif experience > 100000 and level < 11:
+        return True
+    elif experience > 500000 and level < 12:
+        return True
+    elif experience > 1000000 and level < 13:
+        return True
     else:
         return False
 
