@@ -243,9 +243,17 @@ async def on_message(msg):
         message = "```"
         c = 0
         for exam in cursor.fetchall():
-            c += 1
-            line = f"{c} | {exam[0]} | {exam[4]}:{exam[5]} | {exam[3]}.{exam[2]}.{exam[1]} | {exam[6]}|"
-            message += line + "\n"
+            if not below_current_date_year(exam[1], exam[2], exam[3], exam[4], exam[5]):
+                c += 1
+                line = f"{c} | {exam[0]} | {exam[4]}:{exam[5]} | {exam[3]}.{exam[2]}.{exam[1]} | {exam[6]}|"
+                message += line + "\n"
+            else:
+                cursor.execute(f'''DELETE FROM exams WHERE server_id = {guild_id} AND subject = "{exam[0]}"
+                                    AND years = {exam[1]} AND hours = {exam[4]} AND minutes = {exam[5]}
+                                    AND days = {exam[3]} AND months = {exam[2]} AND content = "{exam[6]}"
+                                    ''')
+                connection.commit()
+
         if message == "```":
             await msg.channel.send("**No upcoming tests**")
         else:
@@ -406,9 +414,17 @@ async def on_message(msg):
         message = "```"
         c = 0
         for exam in cursor.fetchall():
-            c += 1
-            line = f"{c} | {exam[0]} | {exam[4]}:{exam[5]} | {exam[3]}.{exam[2]}.{exam[1]} | {exam[6]}|"
-            message += line + "\n"
+            if not below_current_date_year(exam[1], exam[2], exam[3], exam[4], exam[5]):
+                c += 1
+                line = f"{c} | {exam[0]} | {exam[4]}:{exam[5]} | {exam[3]}.{exam[2]}.{exam[1]} | {exam[6]}|"
+                message += line + "\n"
+            else:
+                cursor.execute(f'''DELETE FROM homeworks WHERE server_id = {guild_id} AND subject = "{exam[0]}"
+                                    AND years = {exam[1]} AND hours = {exam[4]} AND minutes = {exam[5]}
+                                    AND days = {exam[3]} AND months = {exam[2]} AND content = "{exam[6]}"
+                                    ''')
+                connection.commit()
+
         if message == "```":
             await msg.channel.send("**There is no homework**")
         else:
@@ -803,11 +819,41 @@ def below_current_date(month, day, hour, minute):
     current_day = int(current_datetime.strftime("%d"))
     current_hour = int(current_datetime.strftime("%H"))
     current_minute = int(current_datetime.strftime("%M"))
-    if month >= current_month:
-        if day >= current_day:
-            if hour >= current_hour:
+    if month > current_month:
+        return False
+    elif month == current_month:
+        if day > current_day:
+            return False
+        elif day == current_day:
+            if hour > current_hour:
+                return False
+            elif hour == current_hour:
                 if minute > current_minute:
                     return False
+    return True
+
+
+def below_current_date_year(year, month, day, hour, minute):
+    current_datetime = datetime.datetime.now()
+    current_year = int(current_datetime.strftime("%Y"))
+    current_month = int(current_datetime.strftime("%m"))
+    current_day = int(current_datetime.strftime("%d"))
+    current_hour = int(current_datetime.strftime("%H"))
+    current_minute = int(current_datetime.strftime("%M"))
+    if year > current_year:
+        return False
+    elif year == current_year:
+        if month > current_month:
+            return False
+        elif month == current_month:
+            if day > current_day:
+                return False
+            elif day == current_day:
+                if hour > current_hour:
+                    return False
+                elif hour == current_hour:
+                    if minute > current_minute:
+                        return False
     return True
 
 
