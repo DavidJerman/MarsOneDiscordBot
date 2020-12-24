@@ -166,7 +166,7 @@ async def on_message(msg):
             await msg.channel.send('{0} threw {1}!'.format(msg.author.mention, str(random.randint(1, 6))))
 
     # Bitcoin
-    elif msg.content.startswith(".bitcoin") or msg.content.startswith("!btc"):
+    elif msg.content.startswith(".bitcoin") or msg.content.startswith(".btc"):
         url = 'https://api.coindesk.com/v1/bpi/currentprice/BTC.json'
         response = requests.get(url)
         value = response.json()['bpi']['USD']['rate']
@@ -696,7 +696,11 @@ async def on_message(msg):
                   ".level     - Shows the user level\n" \
                   "           * Usage: .level\n" \
                   "           & Aliases: [.level, .lvl]\n" \
-                  "Experimental features:\n" \
+                  "```\n" \
+                  "> **Experimental features:**\n" \
+                  "*These features are experimental and thus they may not function properly or " \
+                  "may be very slow. Use them with caution.*\n" \
+                  "```" \
                   ".play      - Plays music from youtube\n" \
                   "           * Usage: .play [youtube_link]\n" \
                   "           $ Aliases: [.play, .p]\n" \
