@@ -15,6 +15,7 @@ from discord import Game, VoiceClient
 from discord import Intents
 from pytube import YouTube
 from pytube.exceptions import RegexMatchError
+from pytz import timezone
 
 TOKEN = ''
 
@@ -110,7 +111,7 @@ async def on_message(msg):
     # Get date
     elif msg.content.startswith(".date") or msg.content.startswith(".time") or msg.content.startswith(".datetime"):
         await msg.channel.send(f"These are the current date and time: "
-                               f"{datetime.datetime.now().strftime('%d.%m.%Y - %H:%M:%S')}")
+                               f"{datetime.datetime.now(tz=timezone('Europe/Ljubljana')).strftime('%d.%m.%Y - %H:%M:%S')}")
 
     # Kill
     elif msg.content.startswith(".kill"):
@@ -846,7 +847,7 @@ def is_level_up(experience, level):
 
 
 def below_current_date(month, day, hour, minute):
-    current_datetime = datetime.datetime.now()
+    current_datetime = datetime.datetime.now(tz=timezone('Europe/Ljubljana'))
     current_month = int(current_datetime.strftime("%m"))
     current_day = int(current_datetime.strftime("%d"))
     current_hour = int(current_datetime.strftime("%H"))
@@ -866,7 +867,8 @@ def below_current_date(month, day, hour, minute):
 
 
 def below_current_date_year(year, month, day, hour, minute):
-    current_datetime = datetime.datetime.now()
+    current_datetime = datetime.datetime.now(tz=timezone('Europe/Ljubljana'))
+    print(year, month, day, hour, minute)
     current_year = int(current_datetime.strftime("%Y"))
     current_month = int(current_datetime.strftime("%m"))
     current_day = int(current_datetime.strftime("%d"))
