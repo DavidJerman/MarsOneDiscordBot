@@ -683,7 +683,7 @@ async def on_message(msg):
             else:
                 await msg.channel.send("Server is starting!")
         else:
-            msg.channel.send("Sorry, only the owner can run this command.")
+            await msg.channel.send("Sorry, only the owner can run this command.")
 
     # Stopping the minecraft server
     elif msg.content.startswith(".mcstop"):
@@ -699,7 +699,7 @@ async def on_message(msg):
             else:
                 await msg.channel.send("Server is starting!")
         else:
-            msg.channel.send("Sorry, only the owner can run this command.")
+            await msg.channel.send("Sorry, only the owner can run this command.")
 
     # Getting the server IP
     elif msg.content.startswith(".mcip"):
