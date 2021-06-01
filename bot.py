@@ -10,6 +10,7 @@ import urllib.request
 import datetime
 from subprocess import Popen, PIPE, STDOUT
 from threading import Timer
+from time import sleep
 
 import discord
 import requests
@@ -21,6 +22,7 @@ from pytube.exceptions import RegexMatchError
 from pytz import timezone
 
 TOKEN = ''  # Your token goes here
+OWNER_ID = ''  # Here goes your discord id
 
 MINECRAFT_SERVER_PATH = '.\\minecraft\\server.jar'
 running = False
@@ -662,31 +664,42 @@ async def on_message(msg):
 
     # Starting the minecraft server
     elif msg.content.startswith(".mcstart"):
-        if not running and not starting:
-            eula_gen()
-            process = Popen(["java", "-jar", "-Xmx4096M", "-Xms2048M", MINECRAFT_SERVER_PATH, "--nogui"], stdout=PIPE,
-                            stdin=PIPE, stderr=STDOUT)
-            starting = True
-            await msg.channel.send("*Server starting...*")
-            thread = threading.Thread(target=terminal_output)
-            thread.start()
-        elif running:
-            await msg.channel.send("The server is running!")
+        if msg.author.id == OWNER_ID:
+            if not running and not starting:
+                eula_gen()
+                process = Popen(["java", "-jar", "-Xmx4096M", "-Xms2048M", MINECRAFT_SERVER_PATH, "--nogui"], stdout=PIPE,
+                                stdin=PIPE, stderr=STDOUT)
+                starting = True
+                await msg.channel.send("*Server starting...*")
+                thread = threading.Thread(target=terminal_output)
+                thread.start()
+                while True:
+                    sleep(1)
+                    if running:
+                        await msg.channel.send("**Server started!**")
+                        break
+            elif running:
+                await msg.channel.send("The server is running!")
+            else:
+                await msg.channel.send("Server is starting!")
         else:
-            await msg.channel.send("Server is starting!")
+            msg.channel.send("Sorry, only the owner can run this command.")
 
     # Stopping the minecraft server
     elif msg.content.startswith(".mcstop"):
-        if running and not starting:
-            await msg.channel.send("*Stopping the server...*")
-            process.communicate(input=b"stop")
-            process.wait()
-            running = False
-            await msg.channel.send("**Server stopped!**")
-        elif not running:
-            await msg.channel.send("Server is not running!")
+        if msg.author.id == OWNER_ID:
+            if running and not starting:
+                await msg.channel.send("*Stopping the server...*")
+                process.communicate(input=b"stop")
+                process.wait()
+                running = False
+                await msg.channel.send("**Server stopped!**")
+            elif not running:
+                await msg.channel.send("Server is not running!")
+            else:
+                await msg.channel.send("Server is starting!")
         else:
-            await msg.channel.send("Server is starting!")
+            msg.channel.send("Sorry, only the owner can run this command.")
 
     # Getting the server IP
     elif msg.content.startswith(".mcip"):
@@ -694,6 +707,13 @@ async def on_message(msg):
             await msg.channel.send("**IP:** davidblog.si")
         else:
             await msg.channel.send("Server is not running!")
+
+    # Server status
+    elif msg.content.startswith(".mcstatus"):
+        if running:
+            await msg.channel.send("*The server is running.*")
+        else:
+            await msg.channel.send("*The server is not running.*")
 
     # Help
     elif msg.content.startswith(".help"):
@@ -765,6 +785,22 @@ async def on_message(msg):
                   ".quit      - Disconnects from the voice channel\n" \
                   "           * Usage: .quit\n" \
                   "           $ Aliases: [.quit, .exit, .fuckoff, .getout, .disconnect]" \
+                  "```\n" \
+                  "> **Minecraft server:**\n" \
+                  "*Certain commands are reserved only for the owner.*\n" \
+                  "```" \
+                  ".mcstart   - Starts the minecraft server\n" \
+                  "           * Usage: .mcstart\n" \
+                  "           $ Aliases: [.mcstart]\n" \
+                  ".mcstop    - Stops the minecraft server\n" \
+                  "           * Usage: .mcstop\n" \
+                  "           $ Aliases: [.mcstop]\n" \
+                  ".mcip      - Displays the ip of the server\n" \
+                  "           * Usage: .mcip\n" \
+                  "           $ Aliases: [.mcip]\n" \
+                  ".mcstatus  - Displays the server status\n" \
+                  "           * Usage: .mcstatus\n" \
+                  "           $ Aliases: [.mcstatus]" \
                   "```"
         await msg.channel.send(message)
 
