@@ -24,7 +24,7 @@ from pytz import timezone
 TOKEN = ''  # Your token goes here
 OWNER_ID = ''  # Here goes your discord id
 
-MINECRAFT_SERVER_PATH = '.\\minecraft\\server.jar'
+MINECRAFT_SERVER_PATH = './minecraft/server.jar'
 running = False
 starting = False
 process = None
@@ -664,7 +664,7 @@ async def on_message(msg):
 
     # Starting the minecraft server
     elif msg.content.startswith(".mcstart"):
-        if msg.author.id == OWNER_ID:
+        if str(msg.author.id) == OWNER_ID:
             if not running and not starting:
                 eula_gen()
                 process = Popen(["java", "-jar", "-Xmx4096M", "-Xms2048M", MINECRAFT_SERVER_PATH, "--nogui"], stdout=PIPE,
@@ -673,8 +673,15 @@ async def on_message(msg):
                 await msg.channel.send("*Server starting...*")
                 thread = threading.Thread(target=terminal_output)
                 thread.start()
+                c = 0
                 while True:
                     sleep(1)
+                    c += 1
+                    if c > 30:
+                        await msg.channel.send("*Could not start the server...*")
+                        running = False
+                        starting = False
+                        break
                     if running:
                         await msg.channel.send("**Server started!**")
                         break
@@ -687,7 +694,7 @@ async def on_message(msg):
 
     # Stopping the minecraft server
     elif msg.content.startswith(".mcstop"):
-        if msg.author.id == OWNER_ID:
+        if str(msg.author.id) == OWNER_ID:
             if running and not starting:
                 await msg.channel.send("*Stopping the server...*")
                 process.communicate(input=b"stop")
