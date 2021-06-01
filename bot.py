@@ -4,9 +4,12 @@ import os
 import random
 import re
 import sqlite3
+import threading
 import urllib.parse
 import urllib.request
 import datetime
+from subprocess import Popen, PIPE, STDOUT
+from threading import Timer
 
 import discord
 import requests
@@ -17,7 +20,12 @@ from pytube import YouTube
 from pytube.exceptions import RegexMatchError
 from pytz import timezone
 
-TOKEN = ''
+TOKEN = ''  # Your token goes here
+
+MINECRAFT_SERVER_PATH = '.\\minecraft\\server.jar'
+running = False
+starting = False
+process = None
 
 intents = Intents.default()
 intents.members = True
@@ -33,6 +41,11 @@ class CustomException(Exception):
 
 @client.event
 async def on_message(msg):
+
+    global running
+    global starting
+    global process
+
     guild_id = msg.guild.id
 
     connection = sqlite3.connect('database.sqlite')
@@ -647,6 +660,41 @@ async def on_message(msg):
         await msg.channel.send("Goodbye!")
         del voice_clients[guild_id]
 
+    # Starting the minecraft server
+    elif msg.content.startswith(".mcstart"):
+        if not running and not starting:
+            eula_gen()
+            process = Popen(["java", "-jar", "-Xmx4096M", "-Xms2048M", MINECRAFT_SERVER_PATH, "--nogui"], stdout=PIPE,
+                            stdin=PIPE, stderr=STDOUT)
+            starting = True
+            await msg.channel.send("*Server starting...*")
+            thread = threading.Thread(target=terminal_output)
+            thread.start()
+        elif running:
+            await msg.channel.send("The server is running!")
+        else:
+            await msg.channel.send("Server is starting!")
+
+    # Stopping the minecraft server
+    elif msg.content.startswith(".mcstop"):
+        if running and not starting:
+            await msg.channel.send("*Stopping the server...*")
+            process.communicate(input=b"stop")
+            process.wait()
+            running = False
+            await msg.channel.send("**Server stopped!**")
+        elif not running:
+            await msg.channel.send("Server is not running!")
+        else:
+            await msg.channel.send("Server is starting!")
+
+    # Getting the server IP
+    elif msg.content.startswith(".mcip"):
+        if running:
+            await msg.channel.send("**IP:** davidblog.si")
+        else:
+            await msg.channel.send("Server is not running!")
+
     # Help
     elif msg.content.startswith(".help"):
         message = "> **Info:**\n```" \
@@ -752,6 +800,8 @@ async def play_next_song(guild_id):
                     if voice_client.is_connected():
                         audio_source = discord.FFmpegPCMAudio("./songs/" + songs[0] + ".mp3",
                                                               executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
+                        #  On Linux remove the executable path
+
                         songs.remove(songs[0])
                         voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
                         voice_client.play(audio_source, after=lambda e: next_song(passed_guild_id))
@@ -891,5 +941,56 @@ def below_current_date_year(year, month, day, hour, minute):
     return True
 
 
+# Generate EULA
+def eula_gen():
+    if "eula.txt" not in os.listdir():
+        with open("eula.txt", "w") as file:
+            file.writelines("eula=true")
+
+
+def terminal_output():
+
+    global process
+    global running
+    global starting
+
+    while True:
+        line = process.stdout.readline()
+        if not line:
+            break
+        if "Done (" in ("" + line.decode()):
+            starting = False
+            running = True
+
+
 client.loop.create_task(list_servers())
 client.run(TOKEN)
+
+
+class RepeatedTimer(object):
+    """
+    A repeater, a timer
+    """
+    def __init__(self, interval, function, *args, **kwargs):
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.is_running = False
+        self.start()
+
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.function(*self.args, **self.kwargs)
+
+    def start(self):
+        if not self.is_running:
+            self._timer = Timer(self.interval, self._run)
+            self._timer.start()
+            self.is_running = True
+
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
