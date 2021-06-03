@@ -722,6 +722,18 @@ async def on_message(msg):
         else:
             await msg.channel.send("*The server is not running.*")
 
+    # Server backup
+    elif msg.content.startswith(".mcbackup"):
+        if not running and not starting:
+            await msg.channel.send("*Backing up...*")
+            folder_name = f'{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}_world'
+            os.system('mkdir backups')
+            os.system(f'mkdir ./backups/{folder_name}')
+            os.system(f'cp -avr ./world ./backups/{folder_name}')
+            await msg.channel.send("**Backup complete!**")
+        else:
+            await msg.channel.send("The server is running, cannot back up.")
+
     # Help
     elif msg.content.startswith(".help"):
         message = "> **Info:**\n```" \
@@ -807,7 +819,10 @@ async def on_message(msg):
                   "           $ Aliases: [.mcip]\n" \
                   ".mcstatus  - Displays the server status\n" \
                   "           * Usage: .mcstatus\n" \
-                  "           $ Aliases: [.mcstatus]" \
+                  "           $ Aliases: [.mcstatus]\n" \
+                  ".mcbackup  - Makes a server backup\n" \
+                  "           * Usage: .mcbackup\n" \
+                  "           $ Aliases: [.mcbackup]" \
                   "```"
         await msg.channel.send(message)
 
