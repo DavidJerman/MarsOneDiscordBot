@@ -724,15 +724,18 @@ async def on_message(msg):
 
     # Server backup
     elif msg.content.startswith(".mcbackup"):
-        if not running and not starting:
-            await msg.channel.send("*Backing up...*")
-            folder_name = f'{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}_world'
-            os.system('mkdir backups')
-            os.system(f'mkdir ./backups/{folder_name}')
-            os.system(f'cp -avr ./world ./backups/{folder_name}')
-            await msg.channel.send("**Backup complete!**")
+        if str(msg.author.id) == OWNER_ID:
+            if not running and not starting:
+                await msg.channel.send("*Backing up...*")
+                folder_name = f'{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}_world'
+                os.system('mkdir backups')
+                os.system(f'mkdir ./backups/{folder_name}')
+                os.system(f'cp -avr ./world ./backups/{folder_name}')
+                await msg.channel.send("**Backup complete!**")
+            else:
+                await msg.channel.send("The server is running, cannot back up.")
         else:
-            await msg.channel.send("The server is running, cannot back up.")
+            await msg.channel.send("Sorry, only the owner can run this command.")
 
     # Help
     elif msg.content.startswith(".help"):
