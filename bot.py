@@ -859,9 +859,7 @@ async def play_next_song(guild_id):
             if songs:
                 if not voice_client.is_playing():
                     if voice_client.is_connected():
-                        audio_source = discord.FFmpegPCMAudio("./songs/" + songs[0] + ".mp3",
-                                                              executable="C:\\ffmpeg\\bin\\ffmpeg.exe")
-                        #  On Linux remove the executable path
+                        audio_source = discord.FFmpegPCMAudio("./songs/" + songs[0] + ".mp3")
 
                         songs.remove(songs[0])
                         voice_clients[passed_guild_id] = passed_guild_id, channel, voice_client, songs
